@@ -4,11 +4,12 @@ import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
 import CustodyTimeline from '../components/CustodyTimeline';
 import API from '../api';
+import { sanitizeInput } from '../utils/sanitize';
 
 const NAV = [
- { path:'/', icon:'⊞', label:'My Cases' },
- { path:'/evidence', icon:'⬡', label:'Evidence' },
- { path:'/custody', icon:'↕', label:'Custody Log' },
+ { path:'cases', icon:'⊞', label:'My Cases' },
+ { path:'evidence', icon:'⬡', label:'Evidence' },
+ { path:'timeline', icon:'↕', label:'Custody Log' },
 ];
 
 export default function OfficerDashboard() {
@@ -63,7 +64,9 @@ export default function OfficerDashboard() {
    try {
      await API.post('/evidence', {
        case_id: selectedCase.case_id,
-       ...evForm
+       type: sanitizeInput(evForm.type),
+       hash_value: sanitizeInput(evForm.hash_value),
+       status: evForm.status,
      });
 
      const r = await API.get(`/evidence?case_id=${selectedCase.case_id}`);
@@ -127,7 +130,17 @@ export default function OfficerDashboard() {
 
  return (
  <div style={{ display:"flex", minHeight:"100vh" }}>
- <Sidebar navItems={NAV} />
+ <Sidebar
+   navItems={NAV}
+   active={view}
+   onNavigate={async (p) => {
+     setView(p);
+     if (p === 'evidence' && !selectedCase) {
+       const r = await API.get('/evidence');
+       setEvidence(r.data);
+     }
+   }}
+ />
 
  <main style={{
    flex:1,
@@ -275,7 +288,7 @@ function TransferModal({ evidence, onClose, onSuccess }) {
      await API.post('/custody/transfer', {
        evidence_id: evidence?.evidence_id,
        officer_id: parseInt(officerId),
-       action,
+       action: sanitizeInput(action),
        new_status: newStatus,
      });
 

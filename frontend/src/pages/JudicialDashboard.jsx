@@ -5,8 +5,8 @@ import StatusBadge from '../components/StatusBadge';
 import CustodyTimeline from '../components/CustodyTimeline';
 import API from '../api';
 const NAV = [
- { path:'/', icon:'⊞', label:'Court View' },
- { path:'/audit', icon:'≋', label:'Audit Log' },
+ { path:'court', icon:'⊞', label:'Court View' },
+ { path:'audit', icon:'≋', label:'Audit Log' },
 ];
 export default function JudicialDashboard() {
  const [courtView, setCourtView] = useState([]);
@@ -55,7 +55,7 @@ Date(v).toLocaleString() },
  ];
  return (
  <div style={{ display:"flex", minHeight:"100vh" }}>
- <Sidebar navItems={NAV} />
+ <Sidebar navItems={NAV} active={activeTab} onNavigate={setActiveTab} />
  <main style={{ flex:1, padding:"32px 40px", overflowY:"auto",
  background:"var(--bg-page)" }}>
  {/* Header with READ ONLY badge */}

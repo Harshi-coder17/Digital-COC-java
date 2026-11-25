@@ -103,5 +103,5 @@ SELECT
    COUNT(e.evidence_id) AS evidence_count
 FROM Case_Details cd
 JOIN Evidence e ON cd.case_id = e.case_id
-GROUP BY cd.case_id
+GROUP BY cd.case_id, cd.case_title
 HAVING COUNT(e.evidence_id) > 1;

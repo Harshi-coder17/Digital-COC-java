@@ -3,11 +3,13 @@ import Sidebar from '../components/Sidebar';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
 import API from '../api';
+import { sanitizeInput } from '../utils/sanitize';
 const NAV = [
- { path:'/', icon:'⬡', label:'Evidence' },
- { path:'/reports', icon:'≋', label:'My Findings' },
+ { path:'evidence', icon:'⬡', label:'Evidence' },
+ { path:'findings', icon:'≋', label:'My Findings' },
 ];
 export default function AnalystDashboard() {
+ const [view, setView] = useState('evidence');
  const [evidence, setEvidence] = useState([]);
  const [selected, setSelected] = useState(null);
  const [findings, setFindings] = useState([]);
@@ -27,7 +29,7 @@ return; }
  try {
  await API.post('/forensic/findings', {
  evidence_id: selected.evidence_id,
- finding_text: newText,
+ finding_text: sanitizeInput(newText),
  });
  setNewText('');
  openEvidence(selected);
@@ -43,7 +45,7 @@ return; }
  ];
  return (
  <div style={{ display:"flex", minHeight:"100vh" }}>
- <Sidebar navItems={NAV} />
+ <Sidebar navItems={NAV} active={view} onNavigate={setView} />
  {/* Left — evidence list */}
  <div style={{ flex:1, padding:"32px 28px 32px 40px",
  background:"var(--bg-page)", overflowY:"auto" }}>

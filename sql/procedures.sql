@@ -1,3 +1,6 @@
+-- sql/procedures.sql
+-- Stored Procedures & Functions for ChainGuard
+
 USE chain_of_custody;
 
 DELIMITER $$
@@ -7,40 +10,49 @@ DELIMITER $$
 -- =========================
 DROP PROCEDURE IF EXISTS TransferCustody$$
 CREATE PROCEDURE TransferCustody (
-   IN p_evidence_id INT,
-   IN p_officer_id INT,
-   IN p_action VARCHAR(200),
-   IN p_new_status VARCHAR(50)
+    IN p_evidence_id INT,
+    IN p_officer_id INT,
+    IN p_action VARCHAR(200),
+    IN p_new_status VARCHAR(50)
 )
 BEGIN
-   DECLARE v_ev_count INT DEFAULT 0;
-   DECLARE v_off_count INT DEFAULT 0;
+    DECLARE v_ev_count INT DEFAULT 0;
+    DECLARE v_off_count INT DEFAULT 0;
 
-   SELECT COUNT(*) INTO v_ev_count
-   FROM Evidence
-   WHERE evidence_id = p_evidence_id;
+    IF p_action IS NULL OR LENGTH(TRIM(p_action)) = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Custody action description cannot be empty.';
+    END IF;
 
-   IF v_ev_count = 0 THEN
-       SIGNAL SQLSTATE '45000'
-       SET MESSAGE_TEXT = 'Error: Evidence item not found.';
-   END IF;
+    IF p_new_status NOT IN ('Collected', 'In Analysis', 'Stored', 'Presented') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Invalid evidence status.';
+    END IF;
 
-   SELECT COUNT(*) INTO v_off_count
-   FROM Officer
-   WHERE officer_id = p_officer_id;
+    SELECT COUNT(*) INTO v_ev_count
+    FROM Evidence
+    WHERE evidence_id = p_evidence_id;
 
-   IF v_off_count = 0 THEN
-       SIGNAL SQLSTATE '45000'
-       SET MESSAGE_TEXT = 'Error: Officer not found.';
-   END IF;
+    IF v_ev_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Evidence item not found.';
+    END IF;
 
-   INSERT INTO Custody_Log (evidence_id, officer_id, action)
-   VALUES (p_evidence_id, p_officer_id, p_action);
+    SELECT COUNT(*) INTO v_off_count
+    FROM Officer
+    WHERE officer_id = p_officer_id;
 
-   UPDATE Evidence
-   SET status = p_new_status
-   WHERE evidence_id = p_evidence_id;
+    IF v_off_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Officer not found.';
+    END IF;
 
+    INSERT INTO Custody_Log (evidence_id, officer_id, action)
+    VALUES (p_evidence_id, p_officer_id, p_action);
+
+    UPDATE Evidence
+    SET status = p_new_status
+    WHERE evidence_id = p_evidence_id;
 END$$
 
 
@@ -49,19 +61,39 @@ END$$
 -- =========================
 DROP PROCEDURE IF EXISTS AppendForensicFinding$$
 CREATE PROCEDURE AppendForensicFinding (
-   IN p_evidence_id INT,
-   IN p_reported_by INT,
-   IN p_finding_text TEXT
+    IN p_evidence_id INT,
+    IN p_reported_by INT,
+    IN p_finding_text TEXT
 )
 BEGIN
-   IF p_finding_text IS NULL OR LENGTH(TRIM(p_finding_text)) = 0 THEN
-       SIGNAL SQLSTATE '45000'
-       SET MESSAGE_TEXT = 'Error: Finding text cannot be empty.';
-   END IF;
+    DECLARE v_ev_count INT DEFAULT 0;
+    DECLARE v_off_count INT DEFAULT 0;
 
-   INSERT INTO Forensic_Findings_Log (evidence_id, reported_by, finding_text)
-   VALUES (p_evidence_id, p_reported_by, p_finding_text);
+    IF p_finding_text IS NULL OR LENGTH(TRIM(p_finding_text)) = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Finding text cannot be empty.';
+    END IF;
 
+    SELECT COUNT(*) INTO v_ev_count
+    FROM Evidence
+    WHERE evidence_id = p_evidence_id;
+
+    IF v_ev_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Evidence item not found.';
+    END IF;
+
+    SELECT COUNT(*) INTO v_off_count
+    FROM Officer
+    WHERE officer_id = p_reported_by;
+
+    IF v_off_count = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Reporting officer not found.';
+    END IF;
+
+    INSERT INTO Forensic_Findings_Log (evidence_id, reported_by, finding_text)
+    VALUES (p_evidence_id, p_reported_by, p_finding_text);
 END$$
 
 
@@ -74,13 +106,13 @@ RETURNS INT
 DETERMINISTIC
 READS SQL DATA
 BEGIN
-   DECLARE v_count INT DEFAULT 0;
+    DECLARE v_count INT DEFAULT 0;
 
-   SELECT COUNT(*) INTO v_count
-   FROM Custody_Log
-   WHERE evidence_id = p_evidence_id;
+    SELECT COUNT(*) INTO v_count
+    FROM Custody_Log
+    WHERE evidence_id = p_evidence_id;
 
-   RETURN v_count;
+    RETURN v_count;
 END$$
 
 
@@ -93,28 +125,28 @@ RETURNS VARCHAR(500)
 DETERMINISTIC
 READS SQL DATA
 BEGIN
-   DECLARE v_custody_cnt INT DEFAULT 0;
-   DECLARE v_findings_cnt INT DEFAULT 0;
-   DECLARE v_reports_cnt INT DEFAULT 0;
+    DECLARE v_custody_cnt INT DEFAULT 0;
+    DECLARE v_findings_cnt INT DEFAULT 0;
+    DECLARE v_reports_cnt INT DEFAULT 0;
 
-   SELECT COUNT(*) INTO v_custody_cnt
-   FROM Custody_Log
-   WHERE evidence_id = p_evidence_id;
+    SELECT COUNT(*) INTO v_custody_cnt
+    FROM Custody_Log
+    WHERE evidence_id = p_evidence_id;
 
-   SELECT COUNT(*) INTO v_findings_cnt
-   FROM Forensic_Findings_Log
-   WHERE evidence_id = p_evidence_id;
+    SELECT COUNT(*) INTO v_findings_cnt
+    FROM Forensic_Findings_Log
+    WHERE evidence_id = p_evidence_id;
 
-   SELECT COUNT(*) INTO v_reports_cnt
-   FROM Forensic_Report
-   WHERE evidence_id = p_evidence_id;
+    SELECT COUNT(*) INTO v_reports_cnt
+    FROM Forensic_Report
+    WHERE evidence_id = p_evidence_id;
 
-   RETURN CONCAT(
-       'Evidence #', p_evidence_id,
-       ' | Custody transfers: ', v_custody_cnt,
-       ' | Forensic findings: ', v_findings_cnt,
-       ' | Reports filed: ', v_reports_cnt
-   );
+    RETURN CONCAT(
+        'Evidence #', p_evidence_id,
+        ' | Custody transfers: ', v_custody_cnt,
+        ' | Forensic findings: ', v_findings_cnt,
+        ' | Reports filed: ', v_reports_cnt
+    );
 END$$
 
 DELIMITER ;

@@ -50,8 +50,8 @@ color: "var(--text-primary)",
  <table style={{ width:"100%", borderCollapse:"collapse" }}>
  <thead>
  <tr>
- {columns.map(col => (
- <th key={col.key} style={{
+ {columns.map((col, idx) => (
+ <th key={`${col.key}-${idx}`} style={{
  padding: "10px 16px",
  textAlign: "left",
 fontSize: "11px",
@@ -87,8 +87,8 @@ onMouseLeave={e => {
  e.currentTarget.style.background = "transparent";
  }}
  >
- {columns.map(col => (
- <td key={col.key} style={{
+ {columns.map((col, idx) => (
+ <td key={`${col.key}-${idx}`} style={{
  padding: "11px 16px",
  fontSize: "13px",
 color: col.primary

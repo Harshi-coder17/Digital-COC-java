@@ -1,7 +1,22 @@
+# Build & IDE
+target/
+*.jar
+*.war
+*.class
+.idea/
+*.iml
+.vscode/
+
+# Node / Frontend
 node_modules/
-.env
 dist/
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+abc.env
+
+# OS & Logs
 .DS_Store
 *.log
-.env
-abc.env

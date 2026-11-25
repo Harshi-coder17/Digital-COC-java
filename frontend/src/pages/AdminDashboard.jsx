@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
 import API from '../api';
+import { sanitizeInput } from '../utils/sanitize';
 
 const NAV = [
  { path:'overview', icon:'◈', label:'Overview' },
@@ -57,6 +58,8 @@ export default function AdminDashboard() {
  const [cases, setCases] = useState([]);
  const [evidence, setEvidence] = useState([]);
  const [officers, setOfficers] = useState([]);
+ const [auditLog, setAuditLog] = useState([]);
+ const [formErr, setFormErr] = useState('');
 
  const [showForm, setShowForm] = useState(false);
  const [form, setForm] = useState({
@@ -71,10 +74,11 @@ export default function AdminDashboard() {
  }, []);
 
  const fetchData = async () => {
-   const [c, e, o] = await Promise.all([
+   const [c, e, o, a] = await Promise.all([
      API.get('/cases'),
      API.get('/evidence'),
      API.get('/officers'),
+     API.get('/custody/audit-view'),
    ]);
 
    setStats({
@@ -86,16 +90,22 @@ export default function AdminDashboard() {
    setCases(c.data);
    setEvidence(e.data);
    setOfficers(o.data);
+   setAuditLog(a.data);
  };
 
  const handleAddCase = async () => {
    if (!form.case_title || !form.description || !form.start_date) {
-     alert("Please fill all fields");
+     setFormErr("Please fill all fields");
      return;
    }
+   setFormErr('');
 
    try {
-     await API.post('/cases', form);
+     await API.post('/cases', {
+       ...form,
+       case_title: sanitizeInput(form.case_title),
+       description: sanitizeInput(form.description),
+     });
      await fetchData();
 
      setShowForm(false);
@@ -107,7 +117,7 @@ export default function AdminDashboard() {
      });
 
    } catch (err) {
-     console.error(err);
+     setFormErr(err.response?.data?.error || 'Failed to create case.');
    }
  };
 
@@ -129,6 +139,15 @@ export default function AdminDashboard() {
  { key:'name', label:'Name' },
  { key:'role', label:'Role' },
  { key:'department', label:'Department' },
+ ];
+
+ const AUDIT_COLS = [
+ { key:'evidence_id', label:'EV #' },
+ { key:'evidence_type', label:'Type' },
+ { key:'event_type', label:'Event' },
+ { key:'actor', label:'Actor' },
+ { key:'event_text', label:'Details' },
+ { key:'event_time', label:'Time', render:v=>new Date(v).toLocaleString() },
  ];
 
  return (
@@ -211,10 +230,11 @@ export default function AdminDashboard() {
 
  {/* AUDIT */}
  {view === 'audit' && (
- <div>
-   <h2>Audit Log</h2>
-   <p>Connect custody logs here</p>
- </div>
+   <DataTable
+     title="System Audit Log"
+     columns={AUDIT_COLS}
+     data={auditLog}
+   />
  )}
 
  {/* FORM */}
@@ -222,24 +242,39 @@ export default function AdminDashboard() {
  <div style={{
    marginTop:"20px",
    padding:"16px",
-   border:"1px solid var(--border-default)"
+   border:"1px solid var(--border-default)",
+   background:"var(--bg-surface)",
+   borderRadius:"var(--r-md)"
  }}>
    <input placeholder="Case Title"
+     value={form.case_title}
      onChange={e => setForm({ ...form, case_title: e.target.value })}
+     style={{ display:"block", marginBottom:"10px", width:"100%", padding:"8px" }}
    />
-   <br></br>
-   <br></br>
    <input placeholder="Description"
+     value={form.description}
      onChange={e => setForm({ ...form, description: e.target.value })}
+     style={{ display:"block", marginBottom:"10px", width:"100%", padding:"8px" }}
    />
-   <br></br>
-   <br></br>
    <input type="date"
+     value={form.start_date}
      onChange={e => setForm({ ...form, start_date: e.target.value })}
+     style={{ display:"block", marginBottom:"10px", padding:"8px" }}
    />
-   <br></br>
-   <br></br>
-   <button onClick={handleAddCase}>Submit</button>
+   <select
+     value={form.status}
+     onChange={e => setForm({ ...form, status: e.target.value })}
+     style={{ display:"block", marginBottom:"10px", padding:"8px" }}
+   >
+     <option>Open</option>
+     <option>Under Investigation</option>
+     <option>Closed</option>
+   </select>
+   {formErr && <div style={{ color:"#F87171", fontSize:"12px", marginBottom:"8px" }}>{formErr}</div>}
+   <div style={{ display:"flex", gap:"8px" }}>
+     <button onClick={handleAddCase}>Submit</button>
+     <button onClick={() => { setShowForm(false); setFormErr(''); }}>Cancel</button>
+   </div>
  </div>
  )}
 
